@@ -29,13 +29,19 @@ const VERSION = '4.3.1'
 const DATA_KEY = 'bs.tab'
 const EVENT_KEY = `.${DATA_KEY}`
 const DATA_API_KEY = '.data-api'
+const ARROW_LEFT_KEYCODE = 37 // KeyboardEvent.which value for left arrow key
+const ARROW_UP_KEYCODE = 38 // KeyboardEvent.which value for up arrow key
+const ARROW_RIGHT_KEYCODE = 39 // KeyboardEvent.which value for right arrow key
+const ARROW_DOWN_KEYCODE = 40 // KeyboardEvent.which value for down arrow key
 
 const Event = {
   HIDE: `hide${EVENT_KEY}`,
   HIDDEN: `hidden${EVENT_KEY}`,
   SHOW: `show${EVENT_KEY}`,
   SHOWN: `shown${EVENT_KEY}`,
-  CLICK_DATA_API: `click${EVENT_KEY}${DATA_API_KEY}`
+  CLICK_DATA_API: `click${EVENT_KEY}${DATA_API_KEY}`,
+  KEYDOWN_DATA_API: `keydown${EVENT_KEY}${DATA_API_KEY}`,
+  LOAD_DATA_API: `load${EVENT_KEY}${DATA_API_KEY}`
 }
 
 const ClassName = {
@@ -52,6 +58,7 @@ const Selector = {
   ACTIVE: '.active',
   ACTIVE_UL: ':scope > li > .active',
   DATA_TOGGLE: '[data-toggle="tab"], [data-toggle="pill"], [data-toggle="list"]',
+  TABLIST : '[role="tablist"]',
   DROPDOWN_TOGGLE: '.dropdown-toggle',
   DROPDOWN_ACTIVE_CHILD: ':scope > .dropdown-menu .active'
 }
@@ -231,6 +238,45 @@ class Tab {
     })
   }
 
+  static _dataApiKeydownHandler(event) {
+    if (event.which !== ARROW_LEFT_KEYCODE && event.which !== ARROW_UP_KEYCODE && event.which !== ARROW_RIGHT_KEYCODE && event.which !== ARROW_DOWN_KEYCODE) {
+      return
+    }
+    
+    event.preventDefault()
+    event.stopPropagation()
+
+    if (this.disabled || this.classList.contains(ClassName.DISABLED)) {
+      return
+    }
+
+    const tablist = SelectorEngine.closest(event.target, Selector.TABLIST)
+
+    const tabs = makeArray(SelectorEngine.find(Selector.DATA_TOGGLE, tablist))
+
+    if (!tabs.length) {
+      return
+    }
+
+    let index = tabs.indexOf(event.target)
+
+    if ((event.which === ARROW_LEFT_KEYCODE || event.which === ARROW_UP_KEYCODE) && index > 0) { // Left / Up
+      index--
+    }
+
+    if ((event.which === ARROW_RIGHT_KEYCODE || event.which === ARROW_DOWN_KEYCODE) && index < tabs.length - 1) { // Right / Down
+      index++
+    }
+
+    if (index < 0) {
+      index = 0
+    }
+
+    // WIP naive way of doing this? any better way?
+    tabs[index].focus()
+    tabs[index].click()
+  }
+  
   static _getInstance(element) {
     return Data.getData(element, DATA_KEY)
   }
@@ -242,6 +288,12 @@ class Tab {
  * ------------------------------------------------------------------------
  */
 
+EventHandler.on(window, Event.LOAD_DATA_API, () => {
+  const tablists = makeArray(SelectorEngine.find(Selector.TABLIST))
+  // WIP dummy - need to go through and make sure only one tab per tablist is selected and has tabindex=0 or nothing, others tabindex="-1"
+  console.log('found tab lists '+tablists.length)
+})
+EventHandler.on(document, Event.KEYDOWN_DATA_API, Selector.DATA_TOGGLE, Tab._dataApiKeydownHandler)
 EventHandler.on(document, Event.CLICK_DATA_API, Selector.DATA_TOGGLE, function (event) {
   event.preventDefault()
 
